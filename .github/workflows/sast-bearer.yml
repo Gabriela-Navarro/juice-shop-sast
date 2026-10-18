@@ -1,0 +1,48 @@
+name: SAST con Bearer                        # Nombre que se ve en la pestaña Actions
+
+on:                                          # Define cuándo se ejecuta el pipeline
+  push:                                      # Se ejecuta cuando alguien hace push
+    branches: [main]                         # ...pero solo hacia la rama main
+  pull_request:                              # Se ejecuta cuando se abre o actualiza un Pull Request
+    branches: [main]                         # ...pero solo si el PR va hacia main
+  workflow_dispatch:                         # Permite ejecutarlo a mano con el botón "Run workflow"
+
+permissions:                                 # Permisos que recibe el pipeline (solo los mínimos)
+  contents: read                             # Solo puede leer el código del repositorio
+  security-events: write                     # Puede escribir resultados en Security > Code scanning
+
+jobs:                                        # Lista de trabajos del pipeline
+  bearer:                                    # Nombre interno del único trabajo
+    name: Analisis Bearer                    # Nombre visible del trabajo en Actions
+    runs-on: ubuntu-latest                   # Máquina Linux gratuita de GitHub donde corre todo
+    steps:                                   # Pasos que se ejecutan en orden
+
+      - name: Descargar el codigo            # Paso 1: nombre visible
+        uses: actions/checkout@v6            # Acción oficial que baja el código del repo a la máquina
+
+      - name: Bearer genera reporte SARIF    # Paso 2: nombre visible
+        uses: bearer/bearer-action@v2        # Acción oficial de Bearer, escanea todo el repositorio
+        with:                                # Opciones de la acción
+          format: sarif                      # Formato de salida SARIF (el que entiende GitHub)
+          output: results.sarif              # Archivo donde se guarda el reporte
+          exit-code: 0                       # Fuerza éxito aunque Bearer encuentre hallazgos
+
+      - name: Subir SARIF a Code scanning    # Paso 3: nombre visible
+        if: always()                         # Se ejecuta siempre, aunque un paso anterior falle
+        uses: github/codeql-action/upload-sarif@v4   # Acción oficial de GitHub que sube el SARIF
+        with:                                # Opciones de la acción
+          sarif_file: results.sarif          # Archivo SARIF que se va a subir
+
+      - name: Bearer genera reporte HTML     # Paso 4: nombre visible
+        uses: bearer/bearer-action@v2        # Misma acción de Bearer, ahora para el HTML
+        with:                                # Opciones de la acción
+          format: html                       # Formato de salida HTML (para leer en el navegador)
+          output: bearer-report.html         # Archivo donde se guarda el reporte
+          exit-code: 0                       # Fuerza éxito aunque Bearer encuentre hallazgos
+
+      - name: Guardar HTML como artefacto    # Paso 5: nombre visible
+        if: always()                         # Se ejecuta siempre, aunque un paso anterior falle
+        uses: actions/upload-artifact@v7     # Acción oficial que guarda archivos de la ejecución
+        with:                                # Opciones de la acción
+          name: reporte-bearer-html          # Nombre del artefacto descargable
+          path: bearer-report.html           # Archivo que se guarda como artefacto
