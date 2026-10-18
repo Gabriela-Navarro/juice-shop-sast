@@ -4,7 +4,7 @@ import * as models from '../models/index'
 export function buscarUsuario () {
   return (req: Request, res: Response, next: NextFunction) => {
     const nombre = req.query.nombre ?? ''
-    models.sequelize.query(`SELECT * FROM Users WHERE username = '${nombre}'`)
+    models.sequelize.query('SELECT * FROM Users WHERE username = :nombre', { replacements: { nombre } })
       .then(([usuarios]: any) => {
         res.json(usuarios)
       }).catch((error: Error) => {
